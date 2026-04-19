@@ -2548,7 +2548,6 @@
             document.addEventListener('touchstart', unlockAudio, { passive: true });
             document.addEventListener('pointerdown', unlockAudio);
             
-            const overlay = document.getElementById('countdownOverlay');
             if (overlay) overlay.addEventListener('touchstart', unlockAudio, { passive: true });
 
             enterBtn.addEventListener('click', function () {
