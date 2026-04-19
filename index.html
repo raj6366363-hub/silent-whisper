@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>A Special Birthday Journey 🎂</title>
     <link
         href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Courier+Prime:wght@400;700&family=Playfair+Display:wght@400;700;900&display=swap"
@@ -26,10 +26,19 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+            touch-action: pan-y;
         }
 
+        /* Hide scrollbars for all browsers */
         body {
+            scrollbar-width: none;
+            /* Firefox */
+            -ms-overflow-style: none;
+            /* IE/Edge */
+            overflow: hidden !important;
             font-family: 'Poppins', sans-serif;
             background: var(--dark-bg);
             color: var(--light-text);
@@ -1605,9 +1614,11 @@
         </div>
     </div>
 
-    <audio id="bgMusic" loop preload="auto" playsinline style="position:fixed; bottom:0; opacity:0; pointer-events:none;">
+    <!-- Music Element - High Compatibility Mode -->
+    <audio id="bgMusic" loop preload="auto" playsinline muted style="position:fixed; bottom:0; opacity:0; pointer-events:none;">
         <source src="bg.mp3" type="audio/mpeg">
     </audio>
+    <div class="celebration" id="celebration"></div>
 
     <script>
         // Game state
@@ -2491,23 +2502,60 @@
                 launchBirthdayConfetti();
             }
 
-            enterBtn.addEventListener('click', function () {
-                const music = document.getElementById('bgMusic');
-                if (music && music.paused) music.play().catch(e => console.log("Audio play blocked", e));
+            // High-Reliability Mobile Audio Unlock
+            let audioUnlocked = false;
+            let audioContext;
 
+            const unlockAudio = () => {
+                if (audioUnlocked) return;
+                
+                const music = document.getElementById('bgMusic');
+                if (!music) return;
+
+                // Create/Resume AudioContext - standard practice for modern mobile browsers
+                if (!audioContext) {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (audioContext.state === 'suspended') {
+                    audioContext.resume();
+                }
+
+                // Initial "Prime" of the audio element
+                music.muted = false;
+                const promise = music.play();
+                
+                if (promise !== undefined) {
+                    promise.then(() => {
+                        console.log("Audio Unlocked Successfully");
+                        audioUnlocked = true;
+                        removeUnlockListeners();
+                    }).catch(err => {
+                        console.log("Waiting for meaningful gesture...", err);
+                    });
+                }
+            };
+
+            const removeUnlockListeners = () => {
+                document.removeEventListener('click', unlockAudio);
+                document.removeEventListener('touchstart', unlockAudio);
+                document.removeEventListener('pointerdown', unlockAudio);
+                const overlay = document.getElementById('countdownOverlay');
+                if (overlay) overlay.removeEventListener('touchstart', unlockAudio);
+            };
+
+            // Bind to everything to catch the first possible gesture
+            document.addEventListener('click', unlockAudio);
+            document.addEventListener('touchstart', unlockAudio, { passive: true });
+            document.addEventListener('pointerdown', unlockAudio);
+            
+            const overlay = document.getElementById('countdownOverlay');
+            if (overlay) overlay.addEventListener('touchstart', unlockAudio, { passive: true });
+
+            enterBtn.addEventListener('click', function () {
+                unlockAudio();
                 overlay.classList.add('hidden');
                 setTimeout(() => { overlay.style.display = 'none'; }, 1300);
             });
-
-            // Fallback: Trigger music on any first touch/click if not already playing
-            const startMusic = () => {
-                const music = document.getElementById('bgMusic');
-                if (music && music.paused) music.play().catch(e => { });
-                document.removeEventListener('click', startMusic);
-                document.removeEventListener('touchstart', startMusic);
-            };
-            document.addEventListener('click', startMusic);
-            document.addEventListener('touchstart', startMusic);
 
             // Initial check: if already past the date, skip countdown entirely
             if (Date.now() >= TARGET_UTC) {
